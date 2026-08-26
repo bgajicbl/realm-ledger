@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: realm-ledger
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/realm_ledger}
+    username: ${DB_USER:realm}
+    password: ${DB_PASSWORD:realm}
+    hikari:
+      # Sized against the database's connection budget, not against expected traffic:
+      # under a spike the queue in front of a right-sized pool is what protects MySQL.
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      connection-timeout: 2000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+server:
+  shutdown: graceful

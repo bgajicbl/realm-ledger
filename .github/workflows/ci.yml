@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # The three fast gates run before Maven touches the network. A layering violation
+      # or a missing acceptance test should fail in seconds, not after a full build.
+      - name: Architecture guard
+        run: make layering
+
+      - name: Core self-check
+        run: make core-check
+
+      - name: Spec coverage gate
+        run: make spec-gate
+
+      - name: Tests
+        run: mvn -B test
+
+      # Applies to every commit, whoever or whatever wrote it. A pipeline that trusts the
+      # author is not a pipeline.
+      - name: Migration history is immutable
+        run: |
+          git fetch origin ${{ github.base_ref || 'main' }} --depth=1 || exit 0
+          changed=$(git diff --name-only --diff-filter=MD \
+            FETCH_HEAD -- src/main/resources/db/migration/ || true)
+          if [ -n "$changed" ]; then
+            echo "Applied migrations were modified or deleted:"
+            echo "$changed"
+            echo "Schema changes must be a new V<n>__ file."
+            exit 1
+          fi
